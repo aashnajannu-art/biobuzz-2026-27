@@ -7,7 +7,6 @@ import org.firstinspires.ftc.teamcode.pedro.procedures.PinpointTuner;
 import org.firstinspires.ftc.teamcode.pedro.procedures.TwoWheelTuner;
 
 public class Tuning {
-    // Tuners go here
 
     @Tuner(name = "Pinpoint Tuner")
     public static Procedure pinpoint() {

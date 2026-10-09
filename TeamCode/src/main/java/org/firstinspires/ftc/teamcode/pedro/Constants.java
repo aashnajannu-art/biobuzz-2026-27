@@ -5,9 +5,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class Constants {
 
-    //change based on drivetrain and localizer type
     public static Follower create(HardwareMap h) {
-        // return new Follower(Drivetrain, Localizer, Foresight);
         return null;
     }
 }
