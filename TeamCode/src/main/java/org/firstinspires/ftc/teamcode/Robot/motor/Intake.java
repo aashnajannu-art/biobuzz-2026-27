@@ -1,54 +1,50 @@
 package org.firstinspires.ftc.teamcode.Robot.motor;
 
-
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
-
-
 public class Intake {
-    public static final String MOTOR_NAME = "intake";
-
+    //two motors driving the intake, they always get the same power
     private DcMotorEx intake;
+    private DcMotorEx intake2;
 
+    private double speed = 1;
 
+    //initialize motors
     public void init(HardwareMap hardwareMap) {
-        intake = hardwareMap.get(DcMotorEx.class, MOTOR_NAME);
+        intake  = hardwareMap.get(DcMotorEx.class, "intake");
+        intake2 = hardwareMap.get(DcMotorEx.class, "intake2");
 
+        //both motors run the same direction
         intake.setDirection(DcMotorSimple.Direction.FORWARD);
+        intake2.setDirection(DcMotorSimple.Direction.FORWARD);
 
+        //stop fast when power is cut so balls don't roll out
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        intake2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-
-        intake.setPower(0);
+        stop();
     }
 
-
-    public void goForward(double power) {
-        intake.setPower(Math.abs(power));
+    //spin intake inward
+    public void goForward() {
+        setPower(speed);
     }
 
-
-    public void goBackward(double power) {
-        intake.setPower(-Math.abs(power));
+    //spin intake outward
+    public void goBackward() {
+        setPower(-speed);
     }
-
 
     public void stop() {
-        intake.setPower(0);
+        setPower(0.0);
     }
 
-
-    public double getPower() {
-        return intake.getPower();
-    }
-
-
-    public double getCurrentAmps() {
-        return intake.getCurrent(CurrentUnit.AMPS);
+    //one place that sets both motors, so they never get out of sync
+    private void setPower(double power) {
+        intake.setPower(power);
+        intake2.setPower(power);
     }
 }
