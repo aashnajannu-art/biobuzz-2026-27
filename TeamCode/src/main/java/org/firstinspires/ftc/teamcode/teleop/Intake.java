@@ -1,14 +1,11 @@
-package org.firstinspires.ftc.teamcode.teleop;
+package org.firstinspires.ftc.teamcode.Robot.motor;
 
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-@TeleOp(name="intake2motor", group="Linear Opmode")
-
-public class intake2motor {
+public class Intake {
     //two motors driving the intake, they always get the same power
     private DcMotorEx intake;
     private DcMotorEx intake2;
