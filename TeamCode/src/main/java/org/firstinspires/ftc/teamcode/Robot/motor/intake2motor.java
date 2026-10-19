@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-public class Intake {
+public class intake2motor {
     //two motors driving the intake, they always get the same power
     private DcMotorEx intake;
     private DcMotorEx intake2;
@@ -48,3 +48,4 @@ public class Intake {
         intake2.setPower(power);
     }
 }
+
