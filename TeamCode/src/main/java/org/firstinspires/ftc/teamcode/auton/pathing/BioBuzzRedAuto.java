@@ -7,23 +7,38 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.teamcode.Robot.MecanumDrivetrain;
+import org.firstinspires.ftc.teamcode.Robot.motor.Intake;
 
 @Autonomous(name = "BioBuzzRedAuto")
 public class BioBuzzRedAuto extends LinearOpMode {
     private MecanumDrivetrain drive = new MecanumDrivetrain();
+    private Intake intake = new Intake();
     private Limelight3A limelight;
     private DcMotor outtake;
-    private DcMotor intake;
 
-    private final int[] ourTags = {34, 35, 36, 37};
+    private final int[] ourTags = {38, 39, 40, 41};
+
+    //TUNING
+    //flip the sign of turn and strafe.
+    public static double SPIN_UP_SEC = 1.0;
+    // Stop waiting for a tag after this long (counted from START) and shoot anyway.
+    public static double TAG_WAIT_TIMEOUT_SEC = 5.0;
+    public static double FEED_SEC = 2.0;
+
+    public static double PARK_TURN_DEG = 0;       // + means left
+    public static double PARK_FORWARD_IN = 24;    // + means forward
+    public static double PARK_STRAFE_IN = 0;      // + means right
+    public static double PARK_POWER = 0.6;
 
     @Override
     public void runOpMode() throws InterruptedException {
         telemetry.setAutoClear(false);
 
         drive.init(hardwareMap);
+        intake.init(hardwareMap);
 
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
         limelight.pipelineSwitch(0);
@@ -32,32 +47,36 @@ public class BioBuzzRedAuto extends LinearOpMode {
         outtake = hardwareMap.get(DcMotor.class, "outtake_top");
         outtake.setDirection(DcMotorSimple.Direction.REVERSE);
 
-        intake = hardwareMap.get(DcMotor.class, "intake");
-        intake.setDirection(DcMotorSimple.Direction.REVERSE);
-
         telemetry.addLine("Ready to run");
         telemetry.update();
 
         waitForStart();
+        //
+        ElapsedTime autoTimer = new ElapsedTime();
         telemetry.addLine("start pressed");
+        telemetry.update();
 
         outtake.setPower(1.0);
-        sleep(1000);
+        sleep((long) (SPIN_UP_SEC * 1000));
 
-        while (!seeOurTag() && getRuntime() < 23 && !isStopRequested()) {
+        while (!seeOurTag() && autoTimer.seconds() < TAG_WAIT_TIMEOUT_SEC && opModeIsActive()) {
             idle();
         }
+        telemetry.addData("tag seen", seeOurTag());
+        telemetry.update();
 
-        intake.setPower(1.0);
-        sleep(2000);
-        intake.setPower(0);
+        //both intake rollers feed the balls
+        intake.goForward();
+        sleep((long) (FEED_SEC * 1000));
+        intake.stop();
         outtake.setPower(0);
 
-        drive.turnDegrees(0, 0.6, this);
-        drive.driveInches(0, 0.6, this);
-        drive.strafeInches(0, 0.6, this);
+        drive.turnDegrees(PARK_TURN_DEG, PARK_POWER, this);
+        drive.driveInches(PARK_FORWARD_IN, PARK_POWER, this);
+        drive.strafeInches(PARK_STRAFE_IN, PARK_POWER, this);
 
         drive.drive(0, 0, 0);
+        limelight.stop();
 
         telemetry.addLine("Done");
         telemetry.update();

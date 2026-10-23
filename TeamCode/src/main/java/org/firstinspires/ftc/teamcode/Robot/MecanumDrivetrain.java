@@ -1,9 +1,15 @@
 package org.firstinspires.ftc.teamcode.Robot;
 
 
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.teamcode.pedro.Constants;
 
 public class MecanumDrivetrain {
 
@@ -12,25 +18,31 @@ public class MecanumDrivetrain {
     public DcMotor rfMotor = null;
     public DcMotor rbMotor = null;
 
-    // -------------------- CALIBRATION CONSTANTS --------------------
+    public GoBildaPinpointDriver pinpoint = null;
 
-    // goBILDA 5203, 19.2:1, 312 RPM
-    public static final double TICKS_PER_REV = 537.6;
+    // -------------------- TUNING --------------------
 
-    // Assumed wheel diameter; update if you change wheels
-    public static final double WHEEL_DIAMETER_IN = 4.0; //
+    // Stop when within this many inches / degrees of the target.
+    public static double DISTANCE_TOLERANCE_IN = 0.5;
+    public static double TURN_TOLERANCE_DEG = 1.5;
 
-    // Gear ratio: wheel revs per motor rev.
-    // If you add external gearing, update this.
-    public static double GEAR_RATIO = 1.0; //
+    // Start slowing down this far from the target.
+    public static double SLOW_DOWN_IN = 8.0;
+    public static double SLOW_DOWN_DEG = 25.0;
 
-    // Distance per wheel rev = π * D * GEAR_RATIO
-    public static final double TICKS_PER_INCH = 28.06;
-            //(TICKS_PER_REV * GEAR_RATIO) / (Math.PI * WHEEL_DIAMETER_IN);
+    // Never go slower than this while still moving, or the robot can stall short of the target.
+    public static double MIN_POWER = 0.15;
 
-    // Approximate turning constant (encoder ticks per degree of robot rotation).
-    // You MUST tune this on your real robot.
-    public static double TICKS_PER_DEGREE =  7.0389;
+    // Give up on a single move after this long, so a stuck robot doesn't push forever.
+    public static double MOVE_TIMEOUT_SEC = 5.0;
+
+    // While driving/strafing, steer back to the starting heading and cancel sideways drift.
+    // Raise if it still veers, lower if it wiggles side to side.
+    public static double HEADING_KP = 0.03;
+    public static double DRIFT_KP = 0.08;
+
+    // Ramp power up over this long when starting a move, so one side doesn't grab first.
+    public static double RAMP_UP_SEC = 0.3;
 
     // Max drive power used in teleop normalization
     public static final double TELEOP_MAX_POWER = 0.7;
@@ -54,16 +66,24 @@ public class MecanumDrivetrain {
         rfMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Use encoders for precise movement
-        lfMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        lbMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rfMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rbMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        // Wheel encoders aren't used - distance comes from the Pinpoint odometry.
+        lfMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        lbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rfMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        lfMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        lbMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rfMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rbMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        // Pinpoint settings come from the Pinpoint Tuner results saved in pedro/Constants.java
+        pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, Constants.localizerConfig.name.get());
+        pinpoint.setEncoderResolution(Constants.localizerConfig.podType.get());
+        pinpoint.setOffsets(
+                Constants.localizerConfig.xPodOffset.get(),
+                Constants.localizerConfig.yPodOffset.get(),
+                DistanceUnit.INCH);
+        pinpoint.setEncoderDirections(
+                Constants.localizerConfig.xPodDirection.get(),
+                Constants.localizerConfig.yPodDirection.get());
+        // Robot must be still for a moment here while the Pinpoint IMU calibrates.
+        pinpoint.resetPosAndIMU();
 
         stopMotors();
     }
@@ -99,20 +119,33 @@ public class MecanumDrivetrain {
         rbMotor.setPower(rightBackPower);
     }
 
-    // -------------------- COMMON ENCODER HELPER --------------------
+    // -------------------- ODOMETRY --------------------
 
-    private void setRunToPosition() {
-        lfMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        lbMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rfMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rbMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+    public double getX() {
+        return pinpoint.getPosX(DistanceUnit.INCH);
     }
 
-    private void setRunUsingEncoder() {
-        lfMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        lbMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rfMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rbMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    public double getY() {
+        return pinpoint.getPosY(DistanceUnit.INCH);
+    }
+
+    public double getHeadingDegrees() {
+        return pinpoint.getHeading(AngleUnit.DEGREES);
+    }
+
+    // forward > 0 = forward, strafe > 0 = right, turn > 0 = left (counterclockwise)
+    private void setPowers(double forward, double strafe, double turn) {
+        double lf = forward + strafe - turn;
+        double rf = forward - strafe + turn;
+        double lb = forward - strafe - turn;
+        double rb = forward + strafe + turn;
+
+        double max = Math.max(1.0, Math.max(Math.max(Math.abs(lf), Math.abs(rf)), Math.max(Math.abs(lb), Math.abs(rb))));
+
+        lfMotor.setPower(lf / max);
+        rfMotor.setPower(rf / max);
+        lbMotor.setPower(lb / max);
+        rbMotor.setPower(rb / max);
     }
 
     private void stopMotors() {
@@ -122,103 +155,98 @@ public class MecanumDrivetrain {
         rbMotor.setPower(0);
     }
 
-    private boolean anyBusy() {
-        return lfMotor.isBusy() || lbMotor.isBusy() || rfMotor.isBusy() || rbMotor.isBusy();
+    // Full power far from the target, slowing down to MIN_POWER as it gets close.
+    private static double rampedPower(double power, double remaining, double slowDownZone) {
+        double scale = Math.min(1.0, Math.abs(remaining) / slowDownZone);
+        return Math.max(MIN_POWER, Math.abs(power) * scale);
     }
 
     // -------------------- DRIVE STRAIGHT (INCHES) --------------------
 
-    // Non-blocking: set targets, start motion, return immediately.
-    public void driveInchesAsync(double inches, double power) {
-        int moveCounts = (int) Math.round(inches * TICKS_PER_INCH);
-
-        lfMotor.setTargetPosition(lfMotor.getCurrentPosition() + moveCounts);
-        lbMotor.setTargetPosition(lbMotor.getCurrentPosition() + moveCounts);
-        rfMotor.setTargetPosition(rfMotor.getCurrentPosition() + moveCounts);
-        rbMotor.setTargetPosition(rbMotor.getCurrentPosition() + moveCounts);
-
-        setRunToPosition();
-
-        lfMotor.setPower(Math.abs(power));
-        lbMotor.setPower(Math.abs(power));
-        rfMotor.setPower(Math.abs(power));
-        rbMotor.setPower(Math.abs(power));
-    }
-
-    // Blocking: waits until motion completes or opmode stops.
+    // +inches = forward, -inches = backward
     public void driveInches(double inches, double power, LinearOpMode opMode) {
-        driveInchesAsync(inches, power);
-
-        while (opMode.opModeIsActive() && anyBusy()) {
-            opMode.idle();
-
-        }
-
-        stopMotors();
-        setRunUsingEncoder();
+        moveInches(inches, 0, power, opMode);
     }
 
     // -------------------- STRAFE (INCHES) --------------------
 
-    // Non-blocking strafe: +inches = right, -inches = left
-    public void strafeInchesAsync(double inches, double power) {
-        int moveCounts = (int) Math.round(inches * TICKS_PER_INCH);
-
-        // For mecanum, strafe pattern:
-        // LF +, LR -, RF -, RR +
-        lfMotor.setTargetPosition(lfMotor.getCurrentPosition() + moveCounts);
-        lbMotor.setTargetPosition(lbMotor.getCurrentPosition() - moveCounts);
-        rfMotor.setTargetPosition(rfMotor.getCurrentPosition() - moveCounts);
-        rbMotor.setTargetPosition(rbMotor.getCurrentPosition() + moveCounts);
-
-        setRunToPosition();
-
-        lfMotor.setPower(Math.abs(power));
-        lbMotor.setPower(Math.abs(power));
-        rfMotor.setPower(Math.abs(power));
-        rbMotor.setPower(Math.abs(power));
+    // +inches = right, -inches = left
+    public void strafeInches(double inches, double power, LinearOpMode opMode) {
+        moveInches(0, inches, power, opMode);
     }
 
-    public void strafeInches(double inches, double power, LinearOpMode opMode) {
-        strafeInchesAsync(inches, power);
+    private void moveInches(double forwardInches, double rightInches, double power, LinearOpMode opMode) {
+        pinpoint.update();
+        double startX = getX();
+        double startY = getY();
+        double startHeading = Math.toRadians(getHeadingDegrees());
 
-        while (opMode.opModeIsActive() && anyBusy()) {
+        double target = Math.abs(forwardInches) + Math.abs(rightInches);
+        double forwardSign = Math.signum(forwardInches);
+        double rightSign = Math.signum(rightInches);
+
+        ElapsedTime timer = new ElapsedTime();
+
+        while (opMode.opModeIsActive() && timer.seconds() < MOVE_TIMEOUT_SEC) {
+            pinpoint.update();
+            double dx = getX() - startX;
+            double dy = getY() - startY;
+
+            // How far we've moved along the robot's starting forward / right directions.
+            double movedForward = dx * Math.cos(startHeading) + dy * Math.sin(startHeading);
+            double movedRight = dx * Math.sin(startHeading) - dy * Math.cos(startHeading);
+            double moved = forwardSign * movedForward + rightSign * movedRight;
+
+            double remaining = target - moved;
+            if (remaining <= DISTANCE_TOLERANCE_IN) {
+                break;
+            }
+
+            // Drift is movement in the direction we are NOT supposed to be going.
+            double drift = forwardInches != 0 ? movedRight : movedForward;
+            double headingError = AngleUnit.normalizeDegrees(Math.toDegrees(startHeading) - getHeadingDegrees());
+
+            double p = rampedPower(power, remaining, SLOW_DOWN_IN);
+            p *= Math.min(1.0, Math.max(MIN_POWER, timer.seconds() / RAMP_UP_SEC));
+
+            double forward = forwardSign * p;
+            double strafe = rightSign * p;
+            if (forwardInches != 0) {
+                strafe = -DRIFT_KP * drift;
+            } else {
+                forward = -DRIFT_KP * drift;
+            }
+            double turn = HEADING_KP * headingError;
+
+            setPowers(forward, strafe, turn);
             opMode.idle();
         }
 
         stopMotors();
-        setRunUsingEncoder();
     }
 
     // -------------------- TURN (DEGREES) --------------------
 
-    // Non-blocking turn: +degrees = turn left (CCW), -degrees = right (CW)
-    public void turnDegreesAsync(double degrees, double power) {
-        int turnCounts = (int) Math.round(degrees * TICKS_PER_DEGREE);
-
-        // Left side backwards, right side forwards for positive turn
-        lfMotor.setTargetPosition(lfMotor.getCurrentPosition() - turnCounts);
-        lbMotor.setTargetPosition(lbMotor.getCurrentPosition() - turnCounts);
-        rfMotor.setTargetPosition(rfMotor.getCurrentPosition() + turnCounts);
-        rbMotor.setTargetPosition(rbMotor.getCurrentPosition() + turnCounts);
-
-        setRunToPosition();
-
-        double p = Math.abs(power);
-        lfMotor.setPower(p);
-        lbMotor.setPower(p);
-        rfMotor.setPower(p);
-        rbMotor.setPower(p);
-    }
-
+    // +degrees = turn left (CCW), -degrees = right (CW)
     public void turnDegrees(double degrees, double power, LinearOpMode opMode) {
-        turnDegreesAsync(degrees, power);
+        pinpoint.update();
+        double targetHeading = getHeadingDegrees() + degrees;
 
-        while (opMode.opModeIsActive() && anyBusy()) {
+        ElapsedTime timer = new ElapsedTime();
+
+        while (opMode.opModeIsActive() && timer.seconds() < MOVE_TIMEOUT_SEC) {
+            pinpoint.update();
+            double error = AngleUnit.normalizeDegrees(targetHeading - getHeadingDegrees());
+
+            if (Math.abs(error) <= TURN_TOLERANCE_DEG) {
+                break;
+            }
+
+            double p = rampedPower(power, error, SLOW_DOWN_DEG);
+            setPowers(0, 0, Math.signum(error) * p);
             opMode.idle();
         }
 
         stopMotors();
-        setRunUsingEncoder();
     }
 }

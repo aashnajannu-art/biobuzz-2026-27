@@ -28,8 +28,8 @@ public class testIntake3Wheels extends LinearOpMode {
         DcMotorEx intake = hardwareMap.get(DcMotorEx.class, MOTOR_NAME);
         DcMotorEx intake2 = hardwareMap.get(DcMotorEx.class, MOTOR_NAME_2);
 
-        intake.setDirection(DcMotorSimple.Direction.REVERSE);
-        intake2.setDirection(DcMotorSimple.Direction.REVERSE);
+        intake.setDirection(DcMotorSimple.Direction.FORWARD);
+        intake2.setDirection(DcMotorSimple.Direction.FORWARD);
 
         intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         intake2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);

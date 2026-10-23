@@ -2,33 +2,25 @@ package org.firstinspires.ftc.teamcode.teleop;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
+import org.firstinspires.ftc.teamcode.Robot.motor.Intake;
 
-@TeleOp(name="test intake (first 2 intake wheels)", group="Linear Opmode")
+
+@TeleOp(name="intake testing", group="Linear Opmode")
 
 public class testIntake extends LinearOpMode {
 
-    private static final String MOTOR_NAME = "intake";
-
-    private static final double POWER = 1.0;
-
-
     private ElapsedTime runtime = new ElapsedTime();
+    Intake intake = new Intake();
 
     @Override
     public void runOpMode() throws InterruptedException{
 
-        DcMotorEx intake = hardwareMap.get(DcMotorEx.class, MOTOR_NAME);
-        intake.setDirection(DcMotorSimple.Direction.REVERSE);
-        intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        intake.init(hardwareMap);
 
         telemetry.addData("Status", "Initialized");
-        telemetry.addLine("Hold A = spin intake");
+        telemetry.addLine("Hold A = intake in, Hold B = push out");
         telemetry.update();
 
 
@@ -37,12 +29,13 @@ public class testIntake extends LinearOpMode {
 
         while (opModeIsActive()) {
             if (gamepad1.a) {
-                intake.setPower(POWER);
+                intake.goForward();
+            } else if (gamepad1.b) {
+                intake.goBackward();
             } else {
-                intake.setPower(0);
+                intake.stop();
             }
 
-            telemetry.addData("Power", intake.getPower());
             telemetry.addData("Run Time", runtime.seconds());
             telemetry.update();
         }

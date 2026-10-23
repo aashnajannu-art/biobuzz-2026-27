@@ -1,4 +1,7 @@
+/*This code provides the methods for the intake on our robot*/
 package org.firstinspires.ftc.teamcode.Robot.motor;
+
+
 
 
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -6,49 +9,52 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
-import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit;
-
 
 public class Intake {
-    public static final String MOTOR_NAME = "intake";
-
-    private DcMotorEx intake;
-
-
-    public void init(HardwareMap hardwareMap) {
-        intake = hardwareMap.get(DcMotorEx.class, MOTOR_NAME);
-
-        intake.setDirection(DcMotorSimple.Direction.FORWARD);
-
-        intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-        intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-
-        intake.setPower(0);
-    }
+   //initialize all variables
+   private DcMotorEx intake;
+   private DcMotorEx intake2;
 
 
-    public void goForward(double power) {
-        intake.setPower(Math.abs(power));
-    }
+   private double speed = 1;
 
 
-    public void goBackward(double power) {
-        intake.setPower(-Math.abs(power));
-    }
+   //initialize motors
+   public void init(HardwareMap hardwareMap) {
+       intake = hardwareMap.get(DcMotorEx.class, "intake");
+       intake2 = hardwareMap.get(DcMotorEx.class, "intake2");
 
 
-    public void stop() {
-        intake.setPower(0);
-    }
+       //if a roller pushes balls out instead of pulling them in, flip its direction to FORWARD
+       intake.setDirection(DcMotorSimple.Direction.FORWARD);
+       intake2.setDirection(DcMotorSimple.Direction.FORWARD);
 
 
-    public double getPower() {
-        return intake.getPower();
-    }
+       intake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+       intake2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+       intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+       intake2.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
 
-    public double getCurrentAmps() {
-        return intake.getCurrent(CurrentUnit.AMPS);
-    }
+       stop();
+   }
+   //pull balls in
+   public void goForward(){
+       intake.setPower(speed);
+       intake2.setPower(speed);
+   }
+   //push balls back out
+   public void goBackward(){
+       intake.setPower(-speed);
+       intake2.setPower(-speed);
+   }
+   public void stop(){
+       intake.setPower(0.0);
+       intake2.setPower(0.0);
+   }
+
+
+
+
 }

@@ -5,9 +5,14 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.Robot.MecanumDrivetrain;
 
-@Autonomous(name = "BioBuzzBlueSafeAuto")
+@Autonomous(name = "BioBuzzBlueSafeAuto") //drives to parking
 public class BioBuzzBlueSafeAuto extends LinearOpMode {
     private MecanumDrivetrain drive = new MecanumDrivetrain();
+
+    // Measure these on the field. Red is the mirror: flip the sign of turn and strafe.
+    public static double PARK_FORWARD_IN = 24;    // + = forward
+    public static double PARK_STRAFE_IN = 0;      // + = right
+    public static double PARK_POWER = 0.6;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -21,8 +26,8 @@ public class BioBuzzBlueSafeAuto extends LinearOpMode {
         waitForStart();
         telemetry.addLine("start pressed");
 
-        drive.driveInches(0, 0.6, this);
-        drive.strafeInches(0, 0.6, this);
+        drive.driveInches(PARK_FORWARD_IN, PARK_POWER, this);
+        drive.strafeInches(PARK_STRAFE_IN, PARK_POWER, this);
 
         drive.drive(0, 0, 0);
 
