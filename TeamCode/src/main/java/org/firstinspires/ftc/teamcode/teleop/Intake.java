@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.Robot.motor;
+package org.firstinspires.ftc.teamcode.teleop;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class Intake {
     //two motors driving the intake, they always get the same power
+
     private DcMotorEx intake;
     private DcMotorEx intake2;
 

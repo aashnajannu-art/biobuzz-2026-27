@@ -19,13 +19,15 @@ public class BioBuzzRedAuto extends LinearOpMode {
     private Limelight3A limelight;
     private DcMotor outtake;
 
-    private final int[] ourTags = {38, 39, 40, 41};
+    private final int[] ourTags = {30, 31, 32, 33, 34, 35, 36, 37}; // RED SCORING 30-33 + RED AUDIENCE 34-37
 
     //TUNING
     //flip the sign of turn and strafe.
     public static double SPIN_UP_SEC = 1.0;
     // Stop waiting for a tag after this long (counted from START) and shoot anyway.
     public static double TAG_WAIT_TIMEOUT_SEC = 5.0;
+    // Ignore Limelight results older than this (ms) so a frozen last frame doesn't count as seeing the tag.
+    public static long MAX_STALENESS_MS = 500;
     public static double FEED_SEC = 2.0;
 
     public static double PARK_TURN_DEG = 0;       // + means left
@@ -84,7 +86,10 @@ public class BioBuzzRedAuto extends LinearOpMode {
 
     private boolean seeOurTag() {
         LLResult result = limelight.getLatestResult();
-        if (result == null || !result.isValid()) {
+        if (result == null || !result.isValid() || result.getStaleness() > MAX_STALENESS_MS) {
+            return false;
+        }
+        if (result.getFiducialResults() == null) {
             return false;
         }
         for (LLResultTypes.FiducialResult tag : result.getFiducialResults()) {
