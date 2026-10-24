@@ -1,4 +1,4 @@
-/*This code provides the methods for the intake (3 intake wheels, driven by 2 motors) on our robot*/
+/*intake (3 intake wheels, driven by 2 motors)*/
 package org.firstinspires.ftc.teamcode.Robot.motor;
 
 

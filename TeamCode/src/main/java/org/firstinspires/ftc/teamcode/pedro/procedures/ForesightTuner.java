@@ -157,7 +157,7 @@ class ForwardVelocity extends TuningOpMode<Double> {
         localizer.setPose(Pose.zero());
         localizer.update();
 
-        while (!end) {
+        while (!end && !isStopRequested()) {
             localizer.update();
             if (Math.abs(localizer.pose().x()) > distance) {
                 end = true;
@@ -215,7 +215,7 @@ class StrafeVelocity extends TuningOpMode<Double> {
         localizer.setPose(Pose.zero());
         localizer.update();
 
-        while (!end) {
+        while (!end && !isStopRequested()) {
             localizer.update();
             if (Math.abs(localizer.pose().y()) > distance) {
                 end = true;
@@ -278,7 +278,7 @@ class ForwardDeceleration extends TuningOpMode<Double> {
 
         drivetrain.drive(power, false);
 
-        while (!stopping) {
+        while (!stopping && !isStopRequested()) {
             localizer.update();
             double currentVelocity = localizer.twist().toVector2D().x();
             if (Math.abs(currentVelocity) > velocity) {
@@ -292,7 +292,7 @@ class ForwardDeceleration extends TuningOpMode<Double> {
 
         boolean end = false;
 
-        while (!end) {
+        while (!end && !isStopRequested()) {
             localizer.update();
             double currentVelocity = localizer.twist().toVector2D().x();
             long currentTimeNano = System.nanoTime();
@@ -369,7 +369,7 @@ class StrafeDeceleration extends TuningOpMode<Double> {
 
         drivetrain.drive(power, false);
 
-        while (!stopping) {
+        while (!stopping && !isStopRequested()) {
             localizer.update();
             double currentVelocity = localizer.twist().toVector2D().y();
             if (Math.abs(currentVelocity) > velocity) {
@@ -383,7 +383,7 @@ class StrafeDeceleration extends TuningOpMode<Double> {
 
         boolean end = false;
 
-        while (!end) {
+        while (!end && !isStopRequested()) {
             localizer.update();
             double currentVelocity = localizer.twist().toVector2D().y();
             long currentTimeNano = System.nanoTime();
@@ -527,6 +527,11 @@ class HeadingBraking extends TuningOpMode<List<Double>> {
             }
         }
 
+        if (coefficients.isEmpty()) {
+            drivetrain.stop();
+            throw new IllegalStateException("Heading Braking was stopped before all " + POWERS.length
+                    + " runs finished (only " + iteration + " done). Leave it running until it finishes on its own.");
+        }
 
         return coefficients;
     }
@@ -773,6 +778,12 @@ class ForwardBraking extends TuningOpMode<List<Double>> {
             coefficients = List.of(c[0], c[1]);
         }
 
+        if (coefficients.isEmpty()) {
+            drivetrain.stop();
+            throw new IllegalStateException("Forward Braking was stopped before all " + POWERS.length
+                    + " runs finished (only " + iteration + " done). Leave it running until it finishes on its own.");
+        }
+
         return coefficients;
     }
 
@@ -940,6 +951,12 @@ class StrafeBraking extends TuningOpMode<List<Double>> {
         if (state == State.DONE) {
             double[] c = quadraticFit(velocityToBrakingDistance);
             coefficients = List.of(c[0], c[1]);
+        }
+
+        if (coefficients.isEmpty()) {
+            drivetrain.stop();
+            throw new IllegalStateException("Strafe Braking was stopped before all " + POWERS.length
+                    + " runs finished (only " + iteration + " done). Leave it running until it finishes on its own.");
         }
 
         return coefficients;

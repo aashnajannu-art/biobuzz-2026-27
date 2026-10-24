@@ -1,4 +1,4 @@
-/*This code provides the methods for the outtake (one motor) on our robot*/
+/*outtake (one motor)*/
 package org.firstinspires.ftc.teamcode.Robot.motor;
 
 
