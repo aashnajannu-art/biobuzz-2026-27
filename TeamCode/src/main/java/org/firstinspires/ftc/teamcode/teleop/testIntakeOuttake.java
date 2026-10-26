@@ -19,7 +19,10 @@ public class testIntakeOuttake extends LinearOpMode {
 
     private static final double INTAKE_POWER = 1.0;
     private static final double INTAKE_POWER_2 = 1.0;
-    private static final double OUTTAKE_POWER = 1.0;
+    private static final double OUTTAKE_POWER = 0.8;
+
+    // goBILDA 6000 RPM (1:1) motor encoder: 28 ticks per revolution (intake and outtake motors)
+    private static final double OUTTAKE_TICKS_PER_REV = 28.0;
 
 
     private ElapsedTime runtime = new ElapsedTime();
@@ -40,13 +43,14 @@ public class testIntakeOuttake extends LinearOpMode {
         outtake.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
 
         intake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        intake2.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        outtake.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        intake2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        outtake.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         telemetry.addData("Status", "Initialized");
         telemetry.addLine("Hold A = spin both intake rollers");
         telemetry.addLine("Hold X = spin only " + INTAKE_NAME);
         telemetry.addLine("Hold B = spin only " + INTAKE_NAME_2);
+        telemetry.addLine("Hold LEFT BUMPER = reverse both intake rollers (push balls out)");
         telemetry.addLine("Hold Y = spin outtake");
         telemetry.update();
 
@@ -54,9 +58,16 @@ public class testIntakeOuttake extends LinearOpMode {
         waitForStart();
         runtime.reset();
 
+        // highest RPM seen since the outtake was last turned on
+        double peakRpm = 0;
+
         while (opModeIsActive()) {
             // Intake
-            if (gamepad1.a) {
+            if (gamepad1.left_bumper) {
+                // reverse both rollers to push balls back out
+                intake.setPower(-INTAKE_POWER);
+                intake2.setPower(-INTAKE_POWER_2);
+            } else if (gamepad1.a) {
                 intake.setPower(INTAKE_POWER);
                 intake2.setPower(INTAKE_POWER_2);
             } else if (gamepad1.x) {
@@ -77,9 +88,22 @@ public class testIntakeOuttake extends LinearOpMode {
                 outtake.setPower(0);
             }
 
+            // encoder velocity (ticks per second) -> RPM. Needs the encoder cable plugged in.
+            double outtakeRpm = outtake.getVelocity() / OUTTAKE_TICKS_PER_REV * 60.0;
+            if (gamepad1.y) {
+                peakRpm = Math.max(peakRpm, Math.abs(outtakeRpm));
+            } else if (Math.abs(outtakeRpm) < 50) {
+                peakRpm = 0;
+            }
+
             telemetry.addData(INTAKE_NAME + " Power", intake.getPower());
             telemetry.addData(INTAKE_NAME_2 + " Power", intake2.getPower());
+            // intake motors are goBILDA 6000 RPM too, so same 28 ticks per revolution
+            telemetry.addData(INTAKE_NAME + " RPM", "%.0f", intake.getVelocity() / OUTTAKE_TICKS_PER_REV * 60.0);
+            telemetry.addData(INTAKE_NAME_2 + " RPM", "%.0f", intake2.getVelocity() / OUTTAKE_TICKS_PER_REV * 60.0);
             telemetry.addData(OUTTAKE_NAME + " Power", outtake.getPower());
+            telemetry.addData("Outtake RPM", "%.0f", outtakeRpm);
+            telemetry.addData("Outtake peak RPM", "%.0f", peakRpm);
             telemetry.addData("Run Time", runtime.seconds());
             telemetry.update();
         }

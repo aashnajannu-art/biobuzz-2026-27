@@ -34,9 +34,19 @@ public class Main extends LinearOpMode {
             if (gamepad1.b) red = true;
             telemetry.addLine("Press X = BLUE, B = RED");
             telemetry.addData("Alliance", red ? "RED" : "BLUE");
+            telemetry.addLine();
+            telemetry.addLine("Left stick = drive/strafe, right stick = turn");
+            telemetry.addLine("Hold RIGHT BUMPER = auto aim");
+            telemetry.addLine("Hold A = both intake rollers in");
+            telemetry.addLine("Hold X = only intake, B = only intake2");
+            telemetry.addLine("Hold LEFT BUMPER = reverse intake (balls out)");
+            telemetry.addLine("Hold Y = spin outtake");
             telemetry.update();
         }
         autoAim.setTargetTags(red ? RED_TAGS : BLUE_TAGS);
+
+        //highest outtake RPM since the outtake was last turned on
+        double peakRpm = 0;
 
         while (opModeIsActive()) {
             //Drivetrain
@@ -55,33 +65,50 @@ public class Main extends LinearOpMode {
             drive.drive(axial, lateral, yaw);
 
             //Intake
-            //A=intake push balls in,B=intake push balls out
+            //LB=reverse (push balls out),A=both rollers in,X=only intake,B=only intake2
             String intakeState;
-            if (gamepad1.a) {
+            if (gamepad1.left_bumper) {
+                intake.goBackward();
+                intakeState = "REVERSE";
+            } else if (gamepad1.a) {
                 intake.goForward();
                 intakeState = "IN";
+            } else if (gamepad1.x) {
+                intake.runIntakeOnly();
+                intakeState = "intake only";
             } else if (gamepad1.b) {
-                intake.goBackward();
-                intakeState = "OUT";
+                intake.runIntake2Only();
+                intakeState = "intake2 only";
             } else {
                 intake.stop();
                 intakeState = "OFF";
             }
 
             //Outtake
-            //Hold left bumper to spin the outtake
-            boolean shooting = gamepad1.left_bumper;
+            //Hold Y to spin the outtake (works at the same time as the intake)
+            boolean shooting = gamepad1.y;
             if (shooting) {
                 outtake.run();
             } else {
                 outtake.stop();
             }
 
+            double outtakeRpm = outtake.getRpm();
+            if (shooting) {
+                peakRpm = Math.max(peakRpm, Math.abs(outtakeRpm));
+            } else if (Math.abs(outtakeRpm) < 50) {
+                peakRpm = 0;
+            }
+
             double aimError = autoAim.getAimError();
             telemetry.addData("Alliance", red ? "RED" : "BLUE");
             telemetry.addData("Sticks", "axial %.2f  lateral %.2f  yaw %.2f", axial, lateral, yaw);
             telemetry.addData("Intake", intakeState);
+            telemetry.addData("Intake power", "%.2f / %.2f", intake.getPower(), intake.getPower2());
+            telemetry.addData("intake2 RPM", "%.0f", intake.getRpm2());
             telemetry.addData("Outtake on", shooting);
+            telemetry.addData("Outtake RPM", "%.0f", outtakeRpm);
+            telemetry.addData("Outtake peak RPM", "%.0f", peakRpm);
             telemetry.addData("Aiming", aiming);
             telemetry.addData("Tag seen", !Double.isNaN(aimError));
             telemetry.addData("Aim error (deg)", Double.isNaN(aimError) ? "-" : String.format("%.2f", aimError));
