@@ -60,6 +60,9 @@ public class Main extends LinearOpMode {
             boolean aiming = gamepad1.right_bumper;
             if (aiming && autoAim.hasTarget()) {
                 yaw = autoAim.getTurnPower();
+            } else {
+                //clear the PID memory so the next aim starts fresh
+                autoAim.resetAim();
             }
 
             drive.drive(axial, lateral, yaw);
@@ -104,15 +107,20 @@ public class Main extends LinearOpMode {
             telemetry.addData("Alliance", red ? "RED" : "BLUE");
             telemetry.addData("Sticks", "axial %.2f  lateral %.2f  yaw %.2f", axial, lateral, yaw);
             telemetry.addData("Intake", intakeState);
-            telemetry.addData("Intake power", "%.2f / %.2f", intake.getPower(), intake.getPower2());
+            telemetry.addData("intake power", "%.2f", intake.getPower());
+            telemetry.addData("intake RPM", "%.0f", intake.getRpm());
+            telemetry.addData("intake2 power", "%.2f", intake.getPower2());
             telemetry.addData("intake2 RPM", "%.0f", intake.getRpm2());
             telemetry.addData("Outtake on", shooting);
-            telemetry.addData("Outtake RPM", "%.0f", outtakeRpm);
+            telemetry.addData("Outtake RPM", "%.0f (target %.0f)", outtakeRpm, outtake.getTargetRpm());
+            telemetry.addData("Outtake up to speed", outtake.isAtSpeed());
             telemetry.addData("Outtake peak RPM", "%.0f", peakRpm);
             telemetry.addData("Aiming", aiming);
             telemetry.addData("Tag seen", !Double.isNaN(aimError));
             telemetry.addData("Aim error (deg)", Double.isNaN(aimError) ? "-" : String.format("%.2f", aimError));
             telemetry.addData("Locked", autoAim.isAimed());
+            //every tag the Limelight sends, before filtering by alliance (if a tag isn't here, the Limelight isn't detecting it)
+            telemetry.addData("Limelight raw", autoAim.getDebugInfo());
             telemetry.update();
         }
 

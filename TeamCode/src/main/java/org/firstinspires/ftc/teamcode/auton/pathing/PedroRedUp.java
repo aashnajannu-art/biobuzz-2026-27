@@ -4,60 +4,54 @@ package org.firstinspires.ftc.teamcode.auton.pathing;
 import static com.pedropathing.api.Paths.*;
 
 
-import com.pedropathing.api.PoseFactory;
+import com.pedropathing.follower.Follower;
 import com.pedropathing.math.Pose;
 import com.pedropathing.paths.Path;
 
 
-//Red up path from the visualizer, rewritten for Pedro 3.0 (same coordinates)
-//Heading is where the FRONT (intake) points. The shooter is on the back, so 270 = shooter facing the hive.
+//Red up path from the visualizer, written for Pedro 3.0 (exact same points and headings)
 public class PedroRedUp {
+    public Path MainChain;
+
+    //start pose (same point as the visualizer, heading 90)
+    public final Pose start = new Pose(56.079, 10.597, Math.toRadians(90));
+
+    //The visualizer's first piece went from (56.079, 10.597) to the same point, turning 90 -> 180.
+    //Pedro 3.0 crashes on a zero-length line, so it's a turn in place instead: follower.hold(startTurned)
+    public final Pose startTurned = new Pose(56.079, 10.597, Math.toRadians(180));
+
+    public final Path toGarden;
+    public final Path toTop;
+    public final Path toPark;
+
+    //The visualizer's last piece starts near the start line, not where toPark ends (the red box),
+    //so it's kept out of MainChain. Otherwise the robot would drive from the red box through the hive to reach it.
+    public final Path returnNudge;
 
 
-    private final PoseFactory poseFactory = PoseFactory.degrees();
+    public PedroRedUp(Follower follower) {
+        toGarden = line(
+                new Pose(56.079, 10.597),
+                new Pose(9.593, 8.675)
+        ).tangent();
 
+        toTop = curve(
+                new Pose(9.593, 8.675),
+                new Pose(22.331, 83.637),
+                new Pose(60.400, 129.947)
+        ).linear(Math.toRadians(180), Math.toRadians(270));
 
-    //start against the bottom wall, shooter facing the hive
-    public final Pose start = poseFactory.of(56.079, 10.597, 270);
-    //same spot turned so the intake faces the garden.
-    //This was a zero-length path in the visualizer, so do it with follower.hold(startTurned) instead.
-    public final Pose startTurned = poseFactory.of(56.079, 10.597, 180);
-    private final Pose garden = poseFactory.of(9.593, 8.675, 180);
-    private final Pose topControl = poseFactory.of(22.331, 83.637, 0);
-    //above the hive: intake facing up so the shooter (back) faces down at the hive for the second shot
-    private final Pose top = poseFactory.of(60.400, 129.947, 90);
-    private final Pose parkControl = poseFactory.of(29.888, 97.547, 0);
-    //same heading as top so it doesn't spin while parking
-    private final Pose park = poseFactory.of(5.295, 115.024, 90);
-    private final Pose returnStart = poseFactory.of(55.858, 10.376, 270);
-    private final Pose returnEnd = poseFactory.of(56.079, 10.597, 270);
+        toPark = curve(
+                new Pose(60.400, 129.947),
+                new Pose(29.888, 97.547),
+                new Pose(5.295, 115.024)
+        ).linear(Math.toRadians(270), Math.toRadians(270));
 
+        returnNudge = line(
+                new Pose(55.858, 10.376),
+                new Pose(56.079, 10.597)
+        ).linear(Math.toRadians(90), Math.toRadians(90));
 
-    //drive into the garden, intake leading
-    public Path toGarden() {
-        return line(startTurned, garden).tangent();
-    }
-
-
-    public Path toTop() {
-        return curve(garden, topControl, top).linear(garden, top);
-    }
-
-
-    public Path toPark() {
-        return curve(top, parkControl, park).constant(park);
-    }
-
-
-    //garden -> top -> park, back to back
-    public Path mainChain() {
-        return path(toGarden(), toTop(), toPark());
-    }
-
-
-    //last segment from the visualizer. It doesn't connect to the park spot (it starts back near the start),
-    //so it's kept separate and isn't part of mainChain()
-    public Path returnNudge() {
-        return line(returnStart, returnEnd).constant(returnEnd);
+        MainChain = path(toGarden, toTop, toPark);
     }
 }

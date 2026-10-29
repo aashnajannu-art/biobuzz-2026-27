@@ -13,16 +13,27 @@ public class AutoAim {
 
     public Limelight3A limelight = null;
 
+    //PID memory between loops
+    private final ElapsedTime pidTimer = new ElapsedTime();
+    private double integral = 0;
+    private double lastError = Double.NaN;
+
     // Only aim at these tag IDs.Empty=aim at any tag the Limelight sees.
     private int[] targetTags = new int[0];
 
     //TUNING
 
-    // Turn power per degree of tx. Raise if aiming is slow, lower if it overshoots/wobbles.
+    //PID + F for turning toward the tag (error = degrees the tag is off center)
+    // P: turn power per degree of error. Raise if aiming is slow, lower if it overshoots/wobbles.
     public static double AIM_KP = 0.02;
-
-    //Never turn slower than this while still off target, or the robot can stall.
-    public static double AIM_MIN_POWER = 0.08;
+    // I: builds up while the robot is stuck just off target. Raise slowly if it stops a few degrees short.
+    public static double AIM_KI = 0.0;
+    // D: slows the turn as it closes in. Raise if it overshoots and swings back and forth.
+    public static double AIM_KD = 0.001;
+    // F: small push added in the turn direction so the robot can still turn when it's close to the tag (overcomes friction).
+    public static double AIM_MIN_POWER = 0.05;
+    // Cap on how much the I term can add, so it can't wind up and spin the robot.
+    public static double AIM_MAX_INTEGRAL_POWER = 0.15;
 
     //Never turn faster than this while aiming.
     public static double AIM_MAX_POWER = 0.5;
@@ -47,6 +58,7 @@ public class AutoAim {
     public void init(HardwareMap hardwareMap, int... targetTags) {
         this.targetTags = targetTags;
         limelight = hardwareMap.get(Limelight3A.class, "limelight");
+        limelight.setPollRateHz(100);
         limelight.pipelineSwitch(0);
         limelight.start();
     }
@@ -71,6 +83,9 @@ public class AutoAim {
         if (result == null) {
             return "result = null (Limelight not sending data)";
         }
+        if (result.getFiducialResults() == null) {
+            return String.format("valid=%b stale=%dms tags=none", result.isValid(), result.getStaleness());
+        }
         StringBuilder ids = new StringBuilder();
         for (LLResultTypes.FiducialResult tag : result.getFiducialResults()) {
             ids.append(tag.getFiducialId()).append(String.format(" (tx %.1f) ", tag.getTargetXDegrees()));
@@ -89,6 +104,9 @@ public class AutoAim {
     public LLResultTypes.FiducialResult getTargetTag() {
         LLResult result = limelight.getLatestResult();
         if (result == null || !result.isValid() || result.getStaleness() > MAX_STALENESS_MS) {
+            return null;
+        }
+        if (result.getFiducialResults() == null) {
             return null;
         }
 
@@ -138,20 +156,55 @@ public class AutoAim {
 
     // Yaw power to pass into MecanumDrivetrain.drive(axial, lateral, yaw).
     // Returns 0 when no tag is visible or we're already on target.
+    // Call this every loop while aiming. Call resetAim() whenever you stop aiming.
     public double getTurnPower() {
         double error = getAimError();
-        if (Double.isNaN(error) || Math.abs(error) <= AIM_TOLERANCE_DEG) {
+        if (Double.isNaN(error)) {
+            //lost the tag: forget the old error so the D term doesn't jump when it comes back
+            resetAim();
             return 0;
         }
 
-        double power = AIM_KP * error;
-        power = Math.signum(power) * Math.max(AIM_MIN_POWER, Math.min(AIM_MAX_POWER, Math.abs(power)));
+        double dt = pidTimer.seconds();
+        pidTimer.reset();
+
+        double derivative = 0;
+        if (!Double.isNaN(lastError) && dt > 0 && dt < 0.5) {
+            derivative = (error - lastError) / dt;
+            integral += error * dt;
+            //keep the I term from winding up
+            if (AIM_KI != 0) {
+                double maxIntegral = AIM_MAX_INTEGRAL_POWER / AIM_KI;
+                integral = Math.max(-maxIntegral, Math.min(maxIntegral, integral));
+            }
+        }
+        lastError = error;
+
+        if (Math.abs(error) <= AIM_TOLERANCE_DEG) {
+            //on target: stop, and clear the I term so it doesn't push past next time
+            integral = 0;
+            return 0;
+        }
+
+        double power = AIM_KP * error
+                + AIM_KI * integral
+                + AIM_KD * derivative
+                + Math.copySign(AIM_MIN_POWER, error);
+        power = Math.max(-AIM_MAX_POWER, Math.min(AIM_MAX_POWER, power));
         return INVERT_TURN ? -power : power;
+    }
+
+    // Clears the PID memory. Call when the aim button is let go or before a new aim in auton.
+    public void resetAim() {
+        integral = 0;
+        lastError = Double.NaN;
+        pidTimer.reset();
     }
 
     // Auton: turn in place until aimed at the tag (or timeout). Returns true if it got aimed.
     public boolean aim(MecanumDrivetrain drive, LinearOpMode opMode) {
         ElapsedTime timer = new ElapsedTime();
+        resetAim();
 
         while (opMode.opModeIsActive() && timer.seconds() < AIM_TIMEOUT_SEC) {
             if (isAimed()) {

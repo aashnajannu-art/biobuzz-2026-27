@@ -15,8 +15,8 @@ public class Intake {
     private static final double POWER = 1.0;
     private static final double POWER_2 = 1.0;
 
-    //goBILDA 6000 RPM (1:1) motor encoder: 28 ticks per revolution
-    private static final double TICKS_PER_REV = 28.0;
+    //goBILDA 1150 RPM (5.2:1) motor encoder: 145.1 ticks per revolution (both intake motors)
+    private static final double TICKS_PER_REV = 145.1;
 
     //initialize all variables
     private DcMotorEx intake;
@@ -78,7 +78,11 @@ public class Intake {
         return intake2.getPower();
     }
 
-    //how fast intake2 is actually spinning. Only intake2 has an encoder cable, so there's no RPM for intake.
+    //how fast each intake motor is actually spinning (needs that motor's encoder cable in its own port)
+    public double getRpm() {
+        return intake.getVelocity() / TICKS_PER_REV * 60.0;
+    }
+
     public double getRpm2() {
         return intake2.getVelocity() / TICKS_PER_REV * 60.0;
     }

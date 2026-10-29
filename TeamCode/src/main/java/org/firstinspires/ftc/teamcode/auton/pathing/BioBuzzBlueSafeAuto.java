@@ -9,9 +9,12 @@ import org.firstinspires.ftc.teamcode.Robot.MecanumDrivetrain;
 public class BioBuzzBlueSafeAuto extends LinearOpMode {
     private MecanumDrivetrain drive = new MecanumDrivetrain();
 
-    // Measure these on the field. Red is the mirror: flip the sign of turn and strafe.
-    public static double PARK_FORWARD_IN = 24;    // + = forward
-    public static double PARK_STRAFE_IN = 0;      // + = right
+    // drive forward, turn right, then drive forward again to park
+    // Same moves as BioBuzzRedSafeAuto: the BioBuzz field is rotated 180 degrees for blue (not mirrored),
+    // so turning right still parks in the blue box when the robot starts in the blue starting spot.
+    public static double PARK_FORWARD_IN = 15;     // first move, + = forward
+    public static double PARK_TURN_DEG = -90;     // + = turn left, - = turn right
+    public static double PARK_FORWARD_2_IN = 36;  // after the turn, + = forward
     public static double PARK_POWER = 0.6;
 
     @Override
@@ -27,7 +30,8 @@ public class BioBuzzBlueSafeAuto extends LinearOpMode {
         telemetry.addLine("start pressed");
 
         drive.driveInches(PARK_FORWARD_IN, PARK_POWER, this);
-        drive.strafeInches(PARK_STRAFE_IN, PARK_POWER, this);
+        drive.turnDegrees(PARK_TURN_DEG, PARK_POWER, this);
+        drive.driveInches(PARK_FORWARD_2_IN, PARK_POWER, this);
 
         drive.drive(0, 0, 0);
 

@@ -16,7 +16,7 @@ import org.firstinspires.ftc.teamcode.pedro.Constants;
 //The shooter is on the BACK of the robot, the intake is on the front.
 @Autonomous(name = "PedroRedUpAuto")
 public class PedroRedUpAuto extends LinearOpMode {
-    private final PedroRedUp paths = new PedroRedUp();
+    private PedroRedUp paths;
     private final Intake intake = new Intake();
     private final Outtake outtake = new Outtake();
     private final AutoAim autoAim = new AutoAim();
@@ -25,8 +25,8 @@ public class PedroRedUpAuto extends LinearOpMode {
     private static final int[] RED_TAGS = {30, 31, 32, 33, 34, 35, 36, 37}; // RED SCORING 30-33 + RED AUDIENCE 34-37
 
     //TUNING
-    // Outtake spins up for at least this long before feeding (aiming happens during the spin up).
-    public static double SPIN_UP_SEC = 1.0;
+    // Longest to wait for the outtake to reach its target RPM before feeding anyway (aiming happens during the spin up).
+    public static double SPIN_UP_SEC = 2.0;
     // Intake runs this long to feed the balls into the outtake.
     public static double FEED_SEC = 2.0;
     // Stop aiming after this long and shoot anyway.
@@ -39,6 +39,7 @@ public class PedroRedUpAuto extends LinearOpMode {
     @Override
     public void runOpMode() throws InterruptedException {
         follower = Constants.create(hardwareMap);
+        paths = new PedroRedUp(follower);
         intake.init(hardwareMap);
         outtake.init(hardwareMap);
         autoAim.init(hardwareMap, RED_TAGS);
@@ -46,7 +47,7 @@ public class PedroRedUpAuto extends LinearOpMode {
         follower.setPose(paths.start);
         follower.update();
 
-        telemetry.addLine("Place robot at the red up start, shooter (back) facing the hive");
+        telemetry.addLine("Place robot at the red up start (heading 90, front facing up the field)");
         telemetry.update();
 
         waitForStart();
@@ -61,15 +62,15 @@ public class PedroRedUpAuto extends LinearOpMode {
 
         //3. drive into the garden with the intake running
         intake.goForward();
-        followPath(paths.toGarden());
+        followPath(paths.toGarden);
         intake.stop();
 
-        //4. drive above the hive (shooter facing down at it) and shoot again
-        followPath(paths.toTop());
+        //4. drive above the hive and shoot again
+        followPath(paths.toTop);
         shoot();
 
         //5. park in the red box
-        followPath(paths.toPark());
+        followPath(paths.toPark);
 
         follower.stop();
         intake.stop();
@@ -84,9 +85,9 @@ public class PedroRedUpAuto extends LinearOpMode {
 
         aim();
 
-        //hold still where we aimed, and finish spinning up if aiming was quick
+        //hold still where we aimed, and wait until the outtake reaches its target RPM (or SPIN_UP_SEC runs out)
         follower.hold(follower.pose());
-        while (opModeIsActive() && spinUp.seconds() < SPIN_UP_SEC) {
+        while (opModeIsActive() && !outtake.isAtSpeed() && spinUp.seconds() < SPIN_UP_SEC) {
             follower.update();
         }
 
@@ -102,6 +103,7 @@ public class PedroRedUpAuto extends LinearOpMode {
     //turn in place until the Limelight says the shooter is on the tag (or timeout)
     private void aim() {
         ElapsedTime timer = new ElapsedTime();
+        autoAim.resetAim();
         while (opModeIsActive() && timer.seconds() < AIM_TIMEOUT_SEC && !autoAim.isAimed()) {
             //AutoAim gives + = turn right, Pedro turn is + = turn left
             follower.manual(0, 0, -autoAim.getTurnPower());

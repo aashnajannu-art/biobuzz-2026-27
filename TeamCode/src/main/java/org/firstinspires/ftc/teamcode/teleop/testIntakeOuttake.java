@@ -21,8 +21,10 @@ public class testIntakeOuttake extends LinearOpMode {
     private static final double INTAKE_POWER_2 = 1.0;
     private static final double OUTTAKE_POWER = 0.8;
 
-    // goBILDA 6000 RPM (1:1) motor encoder: 28 ticks per revolution (intake and outtake motors)
+    // goBILDA 6000 RPM (1:1) outtake motor encoder: 28 ticks per revolution
     private static final double OUTTAKE_TICKS_PER_REV = 28.0;
+    // goBILDA 1150 RPM (5.2:1) intake motor encoder: 145.1 ticks per revolution (both intake motors)
+    private static final double INTAKE_TICKS_PER_REV = 145.1;
 
 
     private ElapsedTime runtime = new ElapsedTime();
@@ -98,9 +100,9 @@ public class testIntakeOuttake extends LinearOpMode {
 
             telemetry.addData(INTAKE_NAME + " Power", intake.getPower());
             telemetry.addData(INTAKE_NAME_2 + " Power", intake2.getPower());
-            // intake motors are goBILDA 6000 RPM too, so same 28 ticks per revolution
-            telemetry.addData(INTAKE_NAME + " RPM", "%.0f", intake.getVelocity() / OUTTAKE_TICKS_PER_REV * 60.0);
-            telemetry.addData(INTAKE_NAME_2 + " RPM", "%.0f", intake2.getVelocity() / OUTTAKE_TICKS_PER_REV * 60.0);
+            // both intake motors are goBILDA 1150 RPM
+            telemetry.addData(INTAKE_NAME + " RPM", "%.0f", intake.getVelocity() / INTAKE_TICKS_PER_REV * 60.0);
+            telemetry.addData(INTAKE_NAME_2 + " RPM", "%.0f", intake2.getVelocity() / INTAKE_TICKS_PER_REV * 60.0);
             telemetry.addData(OUTTAKE_NAME + " Power", outtake.getPower());
             telemetry.addData("Outtake RPM", "%.0f", outtakeRpm);
             telemetry.addData("Outtake peak RPM", "%.0f", peakRpm);
