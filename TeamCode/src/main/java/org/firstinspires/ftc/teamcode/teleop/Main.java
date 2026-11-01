@@ -7,6 +7,7 @@ import org.firstinspires.ftc.teamcode.Robot.AutoAim;
 import org.firstinspires.ftc.teamcode.Robot.MecanumDrivetrain;
 import org.firstinspires.ftc.teamcode.Robot.motor.Intake;
 import org.firstinspires.ftc.teamcode.Robot.motor.Outtake;
+import org.firstinspires.ftc.teamcode.Robot.servo.PollenServo;
 
 @TeleOp(name = "Main", group = "Linear Opmode")
 public class Main extends LinearOpMode {
@@ -18,6 +19,7 @@ public class Main extends LinearOpMode {
     private final MecanumDrivetrain drive = new MecanumDrivetrain();
     private final Intake intake = new Intake();
     private final Outtake outtake = new Outtake();
+    private final PollenServo pollenServo = new PollenServo();
     private final AutoAim autoAim = new AutoAim();
 
     @Override
@@ -25,6 +27,7 @@ public class Main extends LinearOpMode {
         drive.init(hardwareMap);
         intake.init(hardwareMap);
         outtake.init(hardwareMap);
+        pollenServo.init(hardwareMap);
         autoAim.init(hardwareMap, BLUE_TAGS);
 
         //Pick alliance during INIT:X = blue,B = red (blue and red buttons on controllers)
@@ -32,21 +35,14 @@ public class Main extends LinearOpMode {
         while (opModeInInit()) {
             if (gamepad1.x) red = false;
             if (gamepad1.b) red = true;
-            telemetry.addLine("Press X = BLUE, B = RED");
+            telemetry.addLine(">>> DRIVERS: CHOOSE YOUR ALLIANCE <<<");
+            telemetry.addLine("GAMEPAD 1: Press X = BLUE, B = RED");
             telemetry.addData("Alliance", red ? "RED" : "BLUE");
             telemetry.addLine();
-            telemetry.addLine("Left stick = drive/strafe, right stick = turn");
-            telemetry.addLine("Hold RIGHT BUMPER = auto aim");
-            telemetry.addLine("Hold A = both intake rollers in");
-            telemetry.addLine("Hold X = only intake, B = only intake2");
-            telemetry.addLine("Hold LEFT BUMPER = reverse intake (balls out)");
-            telemetry.addLine("Hold Y = spin outtake");
+            showControls();
             telemetry.update();
         }
         autoAim.setTargetTags(red ? RED_TAGS : BLUE_TAGS);
-
-        //highest outtake RPM since the outtake was last turned on
-        double peakRpm = 0;
 
         while (opModeIsActive()) {
             //Drivetrain
@@ -56,8 +52,8 @@ public class Main extends LinearOpMode {
             double yaw     = gamepad1.right_stick_x;
 
             //Auto aim
-            //Hold right bumper to turn toward the alliance tag (driver keeps drive/strafe)
-            boolean aiming = gamepad1.right_bumper;
+            //Gamepad 2 holds right bumper to turn toward the alliance tag (driver keeps drive/strafe)
+            boolean aiming = gamepad2.right_bumper;
             if (aiming && autoAim.hasTarget()) {
                 yaw = autoAim.getTurnPower();
             } else {
@@ -68,65 +64,62 @@ public class Main extends LinearOpMode {
             drive.drive(axial, lateral, yaw);
 
             //Intake
-            //LB=reverse (push balls out),A=both rollers in,X=only intake,B=only intake2
+            //Works from either gamepad: LB=reverse (push balls out),A=both rollers in
             String intakeState;
-            if (gamepad1.left_bumper) {
+            if (gamepad1.left_bumper || gamepad2.left_bumper) {
                 intake.goBackward();
                 intakeState = "REVERSE";
-            } else if (gamepad1.a) {
+            } else if (gamepad1.a || gamepad2.a) {
                 intake.goForward();
                 intakeState = "IN";
-            } else if (gamepad1.x) {
-                intake.runIntakeOnly();
-                intakeState = "intake only";
-            } else if (gamepad1.b) {
-                intake.runIntake2Only();
-                intakeState = "intake2 only";
             } else {
                 intake.stop();
                 intakeState = "OFF";
             }
 
             //Outtake
-            //Hold Y to spin the outtake (works at the same time as the intake)
-            boolean shooting = gamepad1.y;
+            //Gamepad 2 holds Y to spin the outtake (works at the same time as the intake)
+            boolean shooting = gamepad2.y;
             if (shooting) {
                 outtake.run();
             } else {
                 outtake.stop();
             }
 
-            double outtakeRpm = outtake.getRpm();
-            if (shooting) {
-                peakRpm = Math.max(peakRpm, Math.abs(outtakeRpm));
-            } else if (Math.abs(outtakeRpm) < 50) {
-                peakRpm = 0;
+            //Pollen gate
+            //Closed by default so the balls stop before the outtake. Gamepad 2 holds right trigger to open it, let go to close it again
+            if (gamepad2.right_trigger > 0.5) {
+                pollenServo.open();
+            } else {
+                pollenServo.block();
             }
 
-            double aimError = autoAim.getAimError();
             telemetry.addData("Alliance", red ? "RED" : "BLUE");
-            telemetry.addData("Sticks", "axial %.2f  lateral %.2f  yaw %.2f", axial, lateral, yaw);
             telemetry.addData("Intake", intakeState);
-            telemetry.addData("intake power", "%.2f", intake.getPower());
-            telemetry.addData("intake RPM", "%.0f", intake.getRpm());
-            telemetry.addData("intake2 power", "%.2f", intake.getPower2());
-            telemetry.addData("intake2 RPM", "%.0f", intake.getRpm2());
-            telemetry.addData("Outtake on", shooting);
-            telemetry.addData("Outtake RPM", "%.0f (target %.0f)", outtakeRpm, outtake.getTargetRpm());
+            telemetry.addData("Outtake RPM", "%.0f (target %.0f)", outtake.getRpm(), outtake.getTargetRpm());
             telemetry.addData("Outtake up to speed", outtake.isAtSpeed());
-            telemetry.addData("Outtake peak RPM", "%.0f", peakRpm);
-            telemetry.addData("Aiming", aiming);
-            telemetry.addData("Tag seen", !Double.isNaN(aimError));
-            telemetry.addData("Aim error (deg)", Double.isNaN(aimError) ? "-" : String.format("%.2f", aimError));
+            telemetry.addData("Pollen gate", pollenServo.isOpen() ? "OPEN" : "BLOCKED");
+            telemetry.addData("Tag seen", autoAim.hasTarget());
             telemetry.addData("Locked", autoAim.isAimed());
-            //every tag the Limelight sends, before filtering by alliance (if a tag isn't here, the Limelight isn't detecting it)
-            telemetry.addData("Limelight raw", autoAim.getDebugInfo());
+            telemetry.addLine();
+            showControls();
             telemetry.update();
         }
 
         drive.drive(0, 0, 0);
         intake.stop();
         outtake.stop();
+        pollenServo.block();
         autoAim.stop();
+    }
+
+    //control list shown on telemetry during both init and the match
+    private void showControls() {
+        telemetry.addLine("GAMEPAD 1: Left stick = drive/strafe, right stick = turn");
+        telemetry.addLine("GAMEPAD 2: Hold RIGHT BUMPER = auto aim");
+        telemetry.addLine("GAMEPAD 2: Hold Y = spin outtake");
+        telemetry.addLine("GAMEPAD 2: Hold RIGHT TRIGGER = open pollen gate (let balls into outtake)");
+        telemetry.addLine("EITHER GAMEPAD: Hold A = both intake rollers in");
+        telemetry.addLine("EITHER GAMEPAD: Hold LEFT BUMPER = reverse intake (balls out)");
     }
 }

@@ -19,7 +19,7 @@ public class Outtake {
 
     //TUNING
     //Speed the outtake holds while shooting. Change this to change how far it shoots.
-    public static double TARGET_RPM = 4500;
+    public static double TARGET_RPM = 1250;
 
     //Counts as "up to speed" within this many RPM of the target.
     public static double RPM_TOLERANCE = 100;
@@ -34,7 +34,7 @@ public class Outtake {
     public static double F = 32767.0 / MAX_TICKS_PER_SEC;
 
     private DcMotorEx outtake;
-    private double targetRpm = 0;
+    private double targetRpm = 1250;
 
 
     //initialize motor
