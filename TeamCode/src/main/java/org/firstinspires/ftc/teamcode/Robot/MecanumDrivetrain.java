@@ -1,6 +1,5 @@
 package org.firstinspires.ftc.teamcode.Robot;
 
-
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -12,7 +11,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedro.Constants;
 
 public class MecanumDrivetrain {
-
     public DcMotor lfMotor = null;
     public DcMotor lbMotor = null;
     public DcMotor rfMotor = null;
@@ -20,34 +18,22 @@ public class MecanumDrivetrain {
 
     public GoBildaPinpointDriver pinpoint = null;
 
-    // -------------------- TUNING --------------------
-
-    // Stop when within this many inches / degrees of the target.
     public static double DISTANCE_TOLERANCE_IN = 0.5;
     public static double TURN_TOLERANCE_DEG = 1.5;
 
-    // Start slowing down this far from the target.
     public static double SLOW_DOWN_IN = 8.0;
     public static double SLOW_DOWN_DEG = 25.0;
 
-    // Never go slower than this while still moving, or the robot can stall short of the target.
     public static double MIN_POWER = 0.15;
 
-    // Give up on a single move after this long, so a stuck robot doesn't push forever.
     public static double MOVE_TIMEOUT_SEC = 5.0;
 
-    // While driving/strafing, steer back to the starting heading and cancel sideways drift.
-    // Raise if it still veers, lower if it wiggles side to side.
     public static double HEADING_KP = 0.03;
     public static double DRIFT_KP = 0.08;
 
-    // Ramp power up over this long when starting a move, so one side doesn't grab first.
     public static double RAMP_UP_SEC = 0.3;
 
-    // Max drive power used in teleop normalization
     public static final double TELEOP_MAX_POWER = 0.7;
-
-    // -------------------- INIT --------------------
 
     public void init(HardwareMap hardwareMap) {
         lfMotor = hardwareMap.get(DcMotor.class, "lf");
@@ -55,7 +41,6 @@ public class MecanumDrivetrain {
         rfMotor = hardwareMap.get(DcMotor.class, "rf");
         rbMotor = hardwareMap.get(DcMotor.class, "rr");
 
-        // Adjust directions as needed for your build
         lfMotor.setDirection(DcMotor.Direction.REVERSE);
         lbMotor.setDirection(DcMotor.Direction.REVERSE);
         rfMotor.setDirection(DcMotor.Direction.FORWARD);
@@ -66,13 +51,11 @@ public class MecanumDrivetrain {
         rfMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rbMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        // Wheel encoders aren't used - distance comes from the Pinpoint odometry.
         lfMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         lbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         rfMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         rbMotor.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
-        // Pinpoint settings come from the Pinpoint Tuner results saved in pedro/Constants.java
         pinpoint = hardwareMap.get(GoBildaPinpointDriver.class, Constants.localizerConfig.name.get());
         pinpoint.setEncoderResolution(Constants.localizerConfig.podType.get());
         pinpoint.setOffsets(
@@ -82,17 +65,13 @@ public class MecanumDrivetrain {
         pinpoint.setEncoderDirections(
                 Constants.localizerConfig.xPodDirection.get(),
                 Constants.localizerConfig.yPodDirection.get());
-        // Robot must be still for a moment here while the Pinpoint IMU calibrates.
+        //robot must stay still while the IMU calibrates
         pinpoint.resetPosAndIMU();
 
         stopMotors();
     }
 
-    // -------------------- TELEOP DRIVE --------------------
-
-    // Standard Mecanum drive: axial = forward, lateral = strafe, yaw = rotate
     public void drive(double axial, double lateral, double yaw) {
-        // Optional small scaling for feel; change or remove if desired
         axial   *= 1.1;
         lateral *= 1.1;
         yaw     *= 1.1;
@@ -119,8 +98,6 @@ public class MecanumDrivetrain {
         rbMotor.setPower(rightBackPower);
     }
 
-    // -------------------- ODOMETRY --------------------
-
     public double getX() {
         return pinpoint.getPosX(DistanceUnit.INCH);
     }
@@ -133,7 +110,7 @@ public class MecanumDrivetrain {
         return pinpoint.getHeading(AngleUnit.DEGREES);
     }
 
-    // forward > 0 = forward, strafe > 0 = right, turn > 0 = left (counterclockwise)
+    //+forward = forward, +strafe = right, +turn = left
     private void setPowers(double forward, double strafe, double turn) {
         double lf = forward + strafe - turn;
         double rf = forward - strafe + turn;
@@ -155,22 +132,17 @@ public class MecanumDrivetrain {
         rbMotor.setPower(0);
     }
 
-    // Full power far from the target, slowing down to MIN_POWER as it gets close.
     private static double rampedPower(double power, double remaining, double slowDownZone) {
         double scale = Math.min(1.0, Math.abs(remaining) / slowDownZone);
         return Math.max(MIN_POWER, Math.abs(power) * scale);
     }
 
-    // -------------------- DRIVE STRAIGHT (INCHES) --------------------
-
-    // +inches = forward, -inches = backward
+    //+ = forward, - = backward
     public void driveInches(double inches, double power, LinearOpMode opMode) {
         moveInches(inches, 0, power, opMode);
     }
 
-    // -------------------- STRAFE (INCHES) --------------------
-
-    // +inches = right, -inches = left
+    //+ = right, - = left
     public void strafeInches(double inches, double power, LinearOpMode opMode) {
         moveInches(0, inches, power, opMode);
     }
@@ -192,7 +164,6 @@ public class MecanumDrivetrain {
             double dx = getX() - startX;
             double dy = getY() - startY;
 
-            // How far we've moved along the robot's starting forward / right directions.
             double movedForward = dx * Math.cos(startHeading) + dy * Math.sin(startHeading);
             double movedRight = dx * Math.sin(startHeading) - dy * Math.cos(startHeading);
             double moved = forwardSign * movedForward + rightSign * movedRight;
@@ -202,7 +173,6 @@ public class MecanumDrivetrain {
                 break;
             }
 
-            // Drift is movement in the direction we are NOT supposed to be going.
             double drift = forwardInches != 0 ? movedRight : movedForward;
             double headingError = AngleUnit.normalizeDegrees(Math.toDegrees(startHeading) - getHeadingDegrees());
 
@@ -225,9 +195,7 @@ public class MecanumDrivetrain {
         stopMotors();
     }
 
-    // -------------------- TURN (DEGREES) --------------------
-
-    // +degrees = turn left (CCW), -degrees = right (CW)
+    //+ = left, - = right
     public void turnDegrees(double degrees, double power, LinearOpMode opMode) {
         pinpoint.update();
         double targetHeading = getHeadingDegrees() + degrees;
